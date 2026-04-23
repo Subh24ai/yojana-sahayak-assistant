@@ -1,0 +1,23 @@
+# Core (always needed)
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.0
+gtts>=2.3.0
+numpy>=1.24.0
+
+# ASR (Apple Silicon)
+# mlx-whisper>=0.1.0
+# sounddevice>=0.4.0
+# scipy>=1.10.0
+
+# LLM (Apple Silicon)
+# mlx-lm>=0.10.0
+
+# MCP Server
+mcp[cli]>=1.0.0
+
+# Demo UI
+# gradio>=4.0.0
+
+# Dev
+pytest>=7.0
+ruff>=0.3.0
