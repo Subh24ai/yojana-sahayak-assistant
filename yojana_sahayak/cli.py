@@ -5,6 +5,7 @@ Usage:
     python -m yojana_sahayak.cli --text "PM Kisan ke liye kaun eligible hai?"
     python -m yojana_sahayak.cli --voice
     python -m yojana_sahayak.cli --gradio
+    python -m yojana_sahayak.cli --bot
     python -m yojana_sahayak.cli --mcp
 """
 
@@ -18,10 +19,15 @@ def main():
     parser.add_argument("--text", type=str, help="Text query (skips ASR)")
     parser.add_argument("--voice", action="store_true", help="Interactive voice loop")
     parser.add_argument("--gradio", action="store_true", help="Launch Gradio web demo")
+    parser.add_argument("--bot", action="store_true", help="Run Telegram bot")
     parser.add_argument("--mcp", action="store_true", help="Run MCP server (stdio)")
     args = parser.parse_args()
 
-    if args.mcp:
+    if args.bot:
+        from yojana_sahayak.bot.telegram_bot import main as bot_main
+        bot_main()
+
+    elif args.mcp:
         from yojana_sahayak.mcp.server import main as mcp_main
         mcp_main()
 

@@ -79,7 +79,7 @@ def load_model():
 def generate(question: str, context: str = "",
              history: Optional[list] = None) -> str:
     """
-    Generate an answer using the fine-tuned LLM.
+    Generate an answer. Uses Groq API when GROQ_API_KEY is set, MLX otherwise.
 
     Args:
         question: User's query (Hindi or English).
@@ -89,6 +89,16 @@ def generate(question: str, context: str = "",
     Returns:
         Generated answer string.
     """
+    import os
+    if os.environ.get("GROQ_API_KEY"):
+        from yojana_sahayak.llm.groq_generator import generate as groq_generate
+        return groq_generate(question, context, history)
+    return _mlx_generate(question, context, history)
+
+
+def _mlx_generate(question: str, context: str = "",
+                  history: Optional[list] = None) -> str:
+    """Generate using local fine-tuned Qwen2.5-1.5B via MLX (Apple Silicon)."""
     from mlx_lm import generate as mlx_generate
     from mlx_lm.sample_utils import make_sampler
 

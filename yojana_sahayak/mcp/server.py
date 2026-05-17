@@ -58,7 +58,7 @@ def _load_core_schemes() -> dict:
                 field = rec.get("field", "")
                 msgs = rec.get("messages", [])
                 answer = next(
-                    (m["content"] for m in msgs if m["role"] == "assistant"), ""¸
+                    (m["content"] for m in msgs if m["role"] == "assistant"), ""
                 )
                 if field and answer:
                     schemes[name][field] = answer

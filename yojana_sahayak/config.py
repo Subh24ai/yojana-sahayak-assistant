@@ -1,6 +1,14 @@
 """Centralized configuration for all pipeline components."""
 
+import os
 from pathlib import Path
+
+# Load .env if present (no-op when python-dotenv is absent)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -26,6 +34,11 @@ RAG_MIN_SCORE_NAMED = 0.45  # lower threshold for known scheme aliases
 
 TRAIN_CLEAN_PATH = str(DATA_DIR / "train_clean.jsonl")
 CORE_SCHEMES_PATH = str(DATA_DIR / "core_schemes.jsonl")
+
+# ── Groq (cloud backend) ──────────────────────────────────────────────────────
+# llama-3.1-8b-instant: fast, free-tier, solid Hindi support
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = (
