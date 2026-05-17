@@ -7,34 +7,32 @@ A **multilingual AI assistant** that helps Indian citizens discover and understa
 - 🖥️ **Gradio web demo** — browser-based voice + text UI
 - 🔧 **MCP server** — tool-calling integration for agentic AI systems
 
-```
-User (Hindi/English/Hinglish)
-        │
-        ▼
-  ┌─────────────────┐        ┌────────────────┐
-  │  Telegram Bot   │  ───►  │  Groq Whisper  │  (voice → text)
-  │  Gradio Demo    │        │  MLX Whisper   │  (local, Apple M-series)
-  └─────────────────┘        └───────┬────────┘
-                                     │
-                             ┌───────▼────────┐
-                             │  Query Rewrite │  (ASR correction dict)
-                             └───────┬────────┘
-                                     │
-                             ┌───────▼────────┐
-                             │  FAISS RAG     │  591 scheme facts
-                             │  MiniLM embed  │  multilingual
-                             └───────┬────────┘
-                                     │
-                             ┌───────▼────────┐
-                             │  LLM           │  Groq llama-3.1-8b (cloud)
-                             │                │  Qwen2.5-1.5B QLoRA (local)
-                             └───────┬────────┘
-                                     │
-                                  Answer
-                                     │
-                             ┌───────▼────────┐
-                             │  gTTS / TTS    │  voice reply
-                             └────────────────┘
+```mermaid
+flowchart TD
+    A["🗣️ User Query\nHindi · English · Hinglish"] --> B
+
+    B["Interface"]
+    B --> B1["🤖 Telegram Bot"]
+    B --> B2["🖥️ Gradio Demo"]
+    B --> B3["⌨️ CLI"]
+
+    B1 & B2 & B3 --> C["🎙️ ASR\nGroq Whisper · MLX Whisper"]
+
+    C --> D["✏️ Query Rewrite\nASR correction dictionary"]
+
+    D --> E["🔍 FAISS RAG\n591 scheme facts · MiniLM multilingual"]
+
+    E --> F["🧠 LLM\nGroq llama-3.1-8b · Qwen2.5-1.5B QLoRA"]
+
+    F --> G["🔊 TTS · gTTS"]
+
+    G --> H["✅ Answer to User"]
+
+    style A fill:#1e3a5f,color:#fff
+    style H fill:#166534,color:#fff
+    style F fill:#4c1d95,color:#fff
+    style E fill:#1e40af,color:#fff
+    style C fill:#92400e,color:#fff
 ```
 
 ## Why It Exists
