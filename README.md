@@ -9,30 +9,35 @@ A **multilingual AI assistant** that helps Indian citizens discover and understa
 
 ```mermaid
 flowchart TD
-    A["🗣️ User Query\nHindi · English · Hinglish"] --> B
+    A["🗣️ User Query\nHindi · English · Hinglish"] --> B1
+    A --> B2
+    A --> B3
+    M["🤖 LLM Agent\nClaude · Cursor · Any MCP client"] --> B4
 
-    B["Interface"]
-    B --> B1["🤖 Telegram Bot"]
-    B --> B2["🖥️ Gradio Demo"]
-    B --> B3["⌨️ CLI"]
+    B1["🤖 Telegram Bot"]
+    B2["🖥️ Gradio Demo"]
+    B3["⌨️ CLI"]
+    B4["🔧 MCP Server\nstdio transport\nsearch_schemes · get_scheme_details\ncheck_eligibility · list_schemes"]
 
     B1 & B2 & B3 --> C["🎙️ ASR\nGroq Whisper · MLX Whisper"]
-
     C --> D["✏️ Query Rewrite\nASR correction dictionary"]
+    D --> E
 
-    D --> E["🔍 FAISS RAG\n591 scheme facts · MiniLM multilingual"]
+    B4 --> E["🔍 FAISS RAG\n591 scheme facts · MiniLM multilingual"]
 
     E --> F["🧠 LLM\nGroq llama-3.1-8b · Qwen2.5-1.5B QLoRA"]
-
     F --> G["🔊 TTS · gTTS"]
-
     G --> H["✅ Answer to User"]
 
+    B4 --> |"tool result (JSON)"| M
+
     style A fill:#1e3a5f,color:#fff
+    style M fill:#1e3a5f,color:#fff
     style H fill:#166534,color:#fff
     style F fill:#4c1d95,color:#fff
     style E fill:#1e40af,color:#fff
     style C fill:#92400e,color:#fff
+    style B4 fill:#065f46,color:#fff
 ```
 
 ## Why It Exists
