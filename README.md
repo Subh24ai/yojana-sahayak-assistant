@@ -1,103 +1,161 @@
-# 🇮🇳 Yojana Sahayak — Sovereign Voice Agent for Indian Government Schemes
+# 🇮🇳 Yojana Sahayak — Voice Agent for Indian Government Schemes
 
-A **fully offline, multilingual voice AI system** with MCP tool-calling that helps Indian citizens discover and understand government welfare schemes in Hindi and English.
+A **multilingual AI assistant** that helps Indian citizens discover and understand government welfare schemes in Hindi, English, and Hinglish.
 
-**Designed for air-gapped, on-premise deployment. Zero internet dependency at runtime.**
-
-```
-Hindi Voice ──→ Whisper ASR ──→ Query Rewrite ──→ RAG (FAISS) ──→ Fine-tuned Qwen2.5 ──→ TTS ──→ Hindi Voice
-                                                       ↑
-                                              MCP Server (stdio)
-                                          ┌──────────┴──────────┐
-                                          │  search_schemes     │
-                                          │  get_scheme_details │
-                                          │  check_eligibility  │
-                                          │  list_schemes       │
-                                          └─────────────────────┘
-```
-
-## Why This Exists
-
-600M+ Indians are eligible for government welfare schemes but can't navigate them — language barriers, digital literacy gaps, and bureaucratic complexity. Yojana Sahayak is a voice-first AI agent that speaks Hindi, runs without internet, and can be deployed inside government offices, CSC centers, or air-gapped data centers.
-
-## Architecture
+**Three ways to use it:**
+- 🤖 **Telegram bot** — most accessible, works on any phone
+- 🖥️ **Gradio web demo** — browser-based voice + text UI
+- 🔧 **MCP server** — tool-calling integration for agentic AI systems
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        YOJANA SAHAYAK                                │
-│                                                                      │
-│  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐          │
-│  │  ASR    │──→│  Query   │──→│   RAG    │──→│   LLM    │──→ TTS   │
-│  │ Whisper │   │ Rewrite  │   │  FAISS   │   │  Qwen2.5 │          │
-│  │ MLX    │   │ ASR Fix  │   │ MiniLM   │   │  QLoRA   │          │
-│  └─────────┘   └──────────┘   └────┬─────┘   └──────────┘          │
-│                                     │                                │
-│                              ┌──────┴──────┐                        │
-│                              │ MCP Server  │ ← stdio (no network)   │
-│                              │ 4 tools     │                        │
-│                              │ 591+ facts  │                        │
-│                              └─────────────┘                        │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐     │
-│  │  Data: 39,957 bilingual QA pairs · 2,872 schemes          │     │
-│  │  Model: Qwen2.5-1.5B QLoRA (perplexity 1.15)              │     │
-│  │  ASR: Whisper large-v3-turbo (24% WER Hindi, RTF 0.37)    │     │
-│  └─────────────────────────────────────────────────────────────┘     │
-└──────────────────────────────────────────────────────────────────────┘
+User (Hindi/English/Hinglish)
+        │
+        ▼
+  ┌─────────────────┐        ┌────────────────┐
+  │  Telegram Bot   │  ───►  │  Groq Whisper  │  (voice → text)
+  │  Gradio Demo    │        │  MLX Whisper   │  (local, Apple M-series)
+  └─────────────────┘        └───────┬────────┘
+                                     │
+                             ┌───────▼────────┐
+                             │  Query Rewrite │  (ASR correction dict)
+                             └───────┬────────┘
+                                     │
+                             ┌───────▼────────┐
+                             │  FAISS RAG     │  591 scheme facts
+                             │  MiniLM embed  │  multilingual
+                             └───────┬────────┘
+                                     │
+                             ┌───────▼────────┐
+                             │  LLM           │  Groq llama-3.1-8b (cloud)
+                             │                │  Qwen2.5-1.5B QLoRA (local)
+                             └───────┬────────┘
+                                     │
+                                  Answer
+                                     │
+                             ┌───────▼────────┐
+                             │  gTTS / TTS    │  voice reply
+                             └────────────────┘
 ```
 
-## Benchmarks
+## Why It Exists
 
-| Component | Metric | Value | Hardware |
-|-----------|--------|-------|----------|
-| ASR (Whisper MLX) | WER (Hindi) | **24%** | Apple M4 Air |
-| ASR (Whisper MLX) | RTF | **0.37** (2.7× real-time) | Apple M4 Air |
-| LLM (QLoRA) | Perplexity | **1.15** | Kaggle T4 (54 min train) |
-| LLM (QLoRA) | Eval Loss | **0.2076** | — |
-| RAG (FAISS) | Index size | **591 facts** | — |
-| Dataset | Total pairs | **39,957** (EN + HI) | — |
-| Dataset | Schemes covered | **2,872** | myscheme.gov.in |
-| E2E Pipeline | Latency | **~12s** (CPU-only) | Apple M4 Air |
+600M+ Indians are eligible for government welfare schemes but can't navigate them — language barriers, digital literacy gaps, and bureaucratic complexity. Yojana Sahayak is a voice-first AI that speaks Hindi, runs on Telegram (where people already are), and answers questions about 2,872+ schemes instantly.
+
+---
 
 ## Quick Start
 
+### Option 1 — Telegram Bot (recommended, cloud)
+
 ```bash
-# Clone
 git clone https://github.com/Subh24ai/yojana-sahayak.git
 cd yojana-sahayak
+pip install -e ".[bot]"
 
-# Install
-pip install -e ".[all]"
+# Set your credentials in .env
+cp .env.example .env   # then fill in TELEGRAM_BOT_TOKEN and GROQ_API_KEY
 
-# Text query
-python -m yojana_sahayak.cli --text "PM Kisan ke liye kaun eligible hai?"
-
-# Voice mode (requires mic)
-python -m yojana_sahayak.cli --voice
-
-# Gradio web demo
-python -m yojana_sahayak.cli --gradio
-
-# MCP server (for agentic integration)
-python -m yojana_sahayak.mcp.server
+python -m yojana_sahayak.bot.telegram_bot
+# or: yojana-bot
+# or: make bot
 ```
+
+The bot starts in **polling mode** by default (no server needed for dev). For production, set `WEBHOOK_URL` and it switches to webhook mode automatically.
+
+### Option 2 — Gradio Web Demo (local)
+
+```bash
+pip install -e ".[demo,groq]"
+python -m yojana_sahayak.cli --gradio
+# Open http://localhost:7860
+```
+
+### Option 3 — Text Query (CLI)
+
+```bash
+pip install -e .
+python -m yojana_sahayak.cli --text "PM Kisan ke liye kaun eligible hai?"
+```
+
+### Option 4 — MCP Server (for agentic AI)
+
+```bash
+pip install -e ".[mcp]"
+python -m yojana_sahayak.mcp.server
+# or: yojana-mcp
+```
+
+---
+
+## Telegram Bot Features
+
+| Feature | Details |
+|---------|---------|
+| `/start` `/help` | Welcome message with usage examples |
+| `/schemes` | Inline keyboard: tap any of 10 popular schemes |
+| Per-scheme buttons | Eligibility · Benefits · How to Apply · About |
+| `/clear` | Reset conversation history |
+| Text messages | Full RAG + LLM pipeline, 5-turn memory |
+| Voice messages | ASR → RAG → LLM → text reply |
+| Languages | Hindi · English · Hinglish |
+| Rate limiting | 10 messages/minute per user |
+| Deployment | Polling (dev) or Webhook (production) |
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in:
+
+```env
+# Required for Telegram bot
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+
+# Required for cloud LLM + ASR (free tier available at console.groq.com)
+GROQ_API_KEY=your_groq_api_key
+
+# Optional: production webhook URL (e.g. from Railway / Render / Fly.io)
+WEBHOOK_URL=https://your-app.railway.app
+
+# Optional: override the Groq model (default: llama-3.1-8b-instant)
+GROQ_MODEL=llama-3.1-8b-instant
+
+# Optional: AI4Bharat Bhashini TTS for higher-quality Hindi voice
+AI4BHARAT_API_KEY=your_bhashini_api_key
+```
+
+Get a free Telegram bot token: [@BotFather](https://t.me/BotFather)
+Get a free Groq API key: [console.groq.com](https://console.groq.com)
+
+---
+
+## LLM Backend Selection
+
+The system auto-selects the LLM at runtime:
+
+| Condition | Backend used |
+|-----------|-------------|
+| `GROQ_API_KEY` is set | Groq `llama-3.1-8b-instant` — fast, works anywhere |
+| No Groq key, Apple Silicon | Fine-tuned Qwen2.5-1.5B via MLX |
+
+The same logic applies to ASR: Groq Whisper API when the key is set, MLX Whisper locally otherwise.
+
+---
 
 ## MCP Server — Tool-Calling for Agentic AI
 
-The MCP server exposes government scheme knowledge as tools that any LLM agent can invoke via the [Model Context Protocol](https://modelcontextprotocol.io/). Uses **stdio transport** — zero network dependency, ideal for air-gapped environments.
+Exposes government scheme knowledge as tools any LLM agent can invoke via [Model Context Protocol](https://modelcontextprotocol.io/). Uses **stdio transport** — zero network dependency, ideal for air-gapped environments.
 
 ### Available Tools
 
-| Tool | Description | Example Input |
-|------|-------------|---------------|
-| `search_schemes` | Semantic search over 591+ scheme facts | `"PM Kisan eligibility"` |
-| `get_scheme_details` | Get specific scheme info by name/field | `"Ayushman Bharat", "benefits"` |
-| `check_eligibility` | Check eligibility with user context | `"Mudra Loan", "small business owner"` |
-| `list_schemes` | List all indexed schemes | — |
+| Tool | Description |
+|------|-------------|
+| `search_schemes` | Semantic search over 591+ scheme facts |
+| `get_scheme_details` | Get specific scheme info by name and field |
+| `check_eligibility` | Check eligibility criteria for a scheme |
+| `list_schemes` | List all indexed scheme names |
 
-### Integration with Claude Desktop / Cursor
-
-Add to your MCP config:
+### Add to Claude Desktop / Cursor
 
 ```json
 {
@@ -111,57 +169,72 @@ Add to your MCP config:
 }
 ```
 
-### Programmatic Usage
+---
 
-```python
-from yojana_sahayak.mcp.server import search_schemes, check_eligibility
+## Deployment
 
-# Semantic search
-results = search_schemes("Ujjwala Yojana gas connection", top_k=3)
-
-# Eligibility check
-eligibility = check_eligibility("PM Kisan", "farmer with 1 hectare in UP")
-```
-
-## Air-Gapped Deployment
-
-This system is designed for environments where data cannot leave the building — government offices, defense installations, regulated enterprises.
+### Docker (recommended for production)
 
 ```bash
-# Build container with all models pre-cached
+# Build
 docker build -t yojana-sahayak .
 
-# Run — zero internet required at runtime
-docker run -it yojana-sahayak
+# Run Telegram bot
+docker run --env-file .env -p 8000:8000 yojana-sahayak
 
-# Or with Gradio demo
-docker run -p 7860:7860 yojana-sahayak python -m yojana_sahayak.cli --gradio
+# Run Gradio demo
+docker run --env-file .env -p 7860:7860 yojana-sahayak \
+    python -m yojana_sahayak.cli --gradio
+
+# Run MCP server (air-gapped)
+docker run --env-file .env yojana-sahayak \
+    python -m yojana_sahayak.mcp.server
 ```
 
-**What runs offline:**
-- ✅ Whisper ASR (MLX, cached locally)
-- ✅ FAISS retrieval (in-memory index)
-- ✅ Fine-tuned Qwen2.5-1.5B (MLX, cached locally)
-- ✅ MCP server (stdio transport, no network)
-- ⚠️ gTTS requires internet (swap with AI4Bharat TTS for fully offline)
+### Railway / Render / Fly.io
+
+1. Connect your GitHub repo
+2. Set environment variables: `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY`, `WEBHOOK_URL`
+3. Deploy — the bot starts automatically in webhook mode
+
+---
+
+## Benchmarks
+
+| Component | Metric | Value | Hardware |
+|-----------|--------|-------|----------|
+| ASR (Whisper MLX) | WER Hindi | **24%** | Apple M4 Air |
+| ASR (Whisper MLX) | RTF | **0.37** (2.7× real-time) | Apple M4 Air |
+| LLM (QLoRA) | Perplexity | **1.15** | Kaggle T4 |
+| LLM (QLoRA) | Eval loss | **0.2076** | — |
+| RAG (FAISS) | Index size | **591 facts** | — |
+| Dataset | Total pairs | **39,957** (EN + HI) | — |
+| Dataset | Schemes covered | **2,872** | myscheme.gov.in |
+| E2E Pipeline | Latency (Groq) | **~2–3s** | Any machine |
+| E2E Pipeline | Latency (MLX) | **~12s** | Apple M4 Air |
+
+---
 
 ## Project Structure
 
 ```
 yojana-sahayak/
 ├── yojana_sahayak/
-│   ├── __init__.py              # Package metadata
-│   ├── config.py                # Centralized configuration
-│   ├── cli.py                   # CLI entry point
-│   ├── demo.py                  # Gradio web UI (voice + text + latency tracking)
+│   ├── config.py                # Centralized config, loads .env
+│   ├── cli.py                   # CLI: --text --voice --gradio --bot --mcp
+│   ├── demo.py                  # Gradio web UI
 │   ├── asr/
-│   │   └── whisper.py           # Whisper MLX ASR + query rewrite
+│   │   ├── whisper.py           # MLX Whisper ASR + query rewrite
+│   │   └── groq_asr.py          # Groq Whisper API (cloud, any format)
 │   ├── rag/
-│   │   └── retriever.py         # FAISS retriever with noise filtering
+│   │   └── retriever.py         # FAISS + MiniLM multilingual retriever
 │   ├── llm/
-│   │   └── generator.py         # Fine-tuned Qwen2.5 generation
+│   │   ├── generator.py         # Auto-selects Groq or MLX at runtime
+│   │   └── groq_generator.py    # Groq cloud LLM (llama-3.1-8b-instant)
 │   ├── tts/
-│   │   └── speaker.py           # Text-to-speech synthesis
+│   │   └── speaker.py           # gTTS synthesis + language detection
+│   ├── bot/
+│   │   └── telegram_bot.py      # Telegram bot (text + voice + inline keyboards)
 │   ├── mcp/
 │   │   └── server.py            # MCP server (4 tools, stdio transport)
 │   ├── agent/
@@ -170,54 +243,62 @@ yojana-sahayak/
 │       ├── extract.py           # PDF extraction from myscheme.gov.in
 │       └── generate_qa.py       # Bilingual QA pair generation
 ├── tests/
-│   └── test_core.py             # Tests for MCP tools, RAG, ASR
+│   └── test_core.py             # 15 tests: config, ASR, MCP tools, data, TTS
 ├── data/
-│   ├── core_schemes.jsonl       # Curated high-quality scheme facts
-│   ├── train_clean.jsonl        # 31,965 clean training records
-│   └── eval_clean.jsonl         # 7,992 clean eval records
-├── adapters/
-│   └── subh24ai/                # QLoRA adapter weights
-├── Dockerfile                   # Air-gapped container deployment
-├── Makefile                     # Common operations
-├── pyproject.toml               # Project metadata + entry points
-└── README.md
+│   ├── core_schemes.jsonl       # Curated scheme facts (indexed at startup)
+│   ├── train_clean.jsonl        # 31,965 training records (git-ignored, large)
+│   └── eval_clean.jsonl         # 7,992 eval records (git-ignored, large)
+├── .env                         # Credentials (git-ignored — never commit)
+├── Dockerfile                   # Default: Telegram bot; supports all modes
+├── Makefile                     # make bot / demo / mcp / query / test
+├── pyproject.toml               # Entry points: yojana-bot, yojana-cli, yojana-mcp
+└── requirements.txt
 ```
 
-## Training & Data Pipeline
-
-### Dataset: [Subh24ai/yojana-sahayak-instruct](https://huggingface.co/datasets/Subh24ai/yojana-sahayak-instruct)
-
-- **Source:** 723 PDFs from [myscheme.gov.in](https://www.myscheme.gov.in) covering 2,872 schemes
-- **Pipeline:** PDF extraction → structured field parsing → bilingual QA generation → noise filtering
-- **Output:** 39,957 instruction-tuning pairs (20,961 English + 18,996 Hindi/Hinglish)
-- **Fields:** description, eligibility, benefits, application_process, multi-turn conversations
-
-### Model: [Subh24ai/yojana-sahayak-qwen2.5-1.5b-qlora](https://huggingface.co/Subh24ai/yojana-sahayak-qwen2.5-1.5b-qlora)
-
-- **Base:** Qwen/Qwen2.5-1.5B-Instruct
-- **Method:** QLoRA (4-bit NF4, r=16, α=32, dropout=0.05)
-- **Target modules:** q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj
-- **Training:** 10,000 samples, Kaggle T4 GPU, 54 minutes
-- **Results:** Perplexity 1.15 | Eval loss 0.2076
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| ASR | Whisper large-v3-turbo (MLX) |
+| Telegram bot | python-telegram-bot v20 (async) |
+| ASR (cloud) | Groq Whisper large-v3-turbo |
+| ASR (local) | mlx-community/whisper-large-v3-turbo |
 | Embeddings | paraphrase-multilingual-MiniLM-L12-v2 |
-| Vector Search | FAISS (IndexFlatIP, cosine similarity) |
-| LLM | Qwen2.5-1.5B-Instruct + QLoRA |
-| TTS | gTTS / AI4Bharat |
-| Tool Protocol | MCP (Model Context Protocol) — stdio transport |
-| Deployment | Docker, air-gapped capable |
-| Data Source | myscheme.gov.in (2,872 government schemes) |
+| Vector search | FAISS IndexFlatIP (cosine similarity) |
+| LLM (cloud) | Groq llama-3.1-8b-instant |
+| LLM (local) | Qwen2.5-1.5B-Instruct + QLoRA (MLX) |
+| TTS | gTTS |
+| Tool protocol | MCP stdio transport |
+| Deployment | Docker, Railway/Render/Fly.io |
+| Data source | myscheme.gov.in (2,872 schemes) |
+
+---
+
+## Training & Data
+
+### Dataset: [Subh24ai/yojana-sahayak-instruct](https://huggingface.co/datasets/Subh24ai/yojana-sahayak-instruct)
+
+- **Source:** 723 PDFs from myscheme.gov.in covering 2,872 schemes
+- **Output:** 39,957 bilingual instruction-tuning pairs (EN + HI/Hinglish)
+- **Fields:** description, eligibility, benefits, application_process, multi-turn
+
+### Model: [Subh24ai/yojana-sahayak-qwen2.5-1.5b-qlora](https://huggingface.co/Subh24ai/yojana-sahayak-qwen2.5-1.5b-qlora)
+
+- **Base:** Qwen/Qwen2.5-1.5B-Instruct
+- **Method:** QLoRA (4-bit NF4, r=16, α=32)
+- **Training:** 10,000 samples, Kaggle T4, 54 minutes
+- **Results:** Perplexity 1.15 · Eval loss 0.2076
+
+---
+
+## Testing
+
+```bash
+pytest tests/ -v   # 15 tests, all passing
+```
+
+---
 
 ## Links
 
@@ -227,4 +308,4 @@ pytest tests/ -v
 
 ## License
 
-Apache 2.0. Government scheme data sourced from India's public [MyScheme](https://www.myscheme.gov.in) portal.
+Apache 2.0. Government scheme data from India's public [MyScheme](https://www.myscheme.gov.in) portal.

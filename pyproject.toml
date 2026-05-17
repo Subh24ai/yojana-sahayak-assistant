@@ -24,6 +24,7 @@ dependencies = [
     "faiss-cpu>=1.7.0",
     "gtts>=2.3.0",
     "numpy>=1.24.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -31,12 +32,15 @@ asr = ["mlx-whisper>=0.1.0", "sounddevice>=0.4.0", "scipy>=1.10.0"]
 llm = ["mlx-lm>=0.10.0"]
 mcp = ["mcp[cli]>=1.0.0"]
 demo = ["gradio>=4.0.0"]
+bot = ["python-telegram-bot[webhooks]>=20.7", "groq>=0.9.0"]
+groq = ["groq>=0.9.0"]
 dev = ["pytest>=7.0", "ruff>=0.3.0"]
-all = ["yojana-sahayak[asr,llm,mcp,demo,dev]"]
+all = ["yojana-sahayak[asr,llm,mcp,demo,bot,dev]"]
 
 [project.scripts]
 yojana-mcp = "yojana_sahayak.mcp.server:main"
 yojana-cli = "yojana_sahayak.cli:main"
+yojana-bot = "yojana_sahayak.bot.telegram_bot:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

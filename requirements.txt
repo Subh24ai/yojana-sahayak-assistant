@@ -3,19 +3,26 @@ sentence-transformers>=2.2.0
 faiss-cpu>=1.7.0
 gtts>=2.3.0
 numpy>=1.24.0
+python-dotenv>=1.0.0
 
-# ASR (Apple Silicon)
-# mlx-whisper>=0.1.0
-# sounddevice>=0.4.0
-# scipy>=1.10.0
+# Cloud LLM + ASR (no Apple Silicon needed)
+groq>=0.9.0
 
-# LLM (Apple Silicon)
-# mlx-lm>=0.10.0
+# Telegram Bot
+python-telegram-bot[webhooks]>=20.7
 
 # MCP Server
 mcp[cli]>=1.0.0
 
-# Demo UI
+# ASR (Apple Silicon only — optional)
+# mlx-whisper>=0.1.0
+# sounddevice>=0.4.0
+# scipy>=1.10.0
+
+# LLM — local fine-tune (Apple Silicon only — optional)
+# mlx-lm>=0.10.0
+
+# Demo UI (optional)
 # gradio>=4.0.0
 
 # Dev
