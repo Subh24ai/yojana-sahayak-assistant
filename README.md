@@ -14,22 +14,31 @@ flowchart TD
     A --> B3
     M["🤖 LLM Agent\nClaude · Cursor · Any MCP client"] --> B4
 
-    B1["🤖 Telegram Bot"]
-    B2["🖥️ Gradio Demo"]
-    B3["⌨️ CLI"]
+    B1["🤖 Telegram Bot\ntext or voice message"]
+    B2["🖥️ Gradio Demo\ntext tab or voice tab"]
+    B3["⌨️ CLI\n--text or --voice"]
     B4["🔧 MCP Server\nstdio transport\nsearch_schemes · get_scheme_details\ncheck_eligibility · list_schemes"]
 
-    B1 & B2 & B3 --> C["🎙️ ASR\nGroq Whisper · MLX Whisper"]
-    C --> D["✏️ Query Rewrite\nASR correction dictionary"]
-    D --> E
+    B1 -->|"voice msg"| C["🎙️ ASR\nGroq Whisper · MLX Whisper"]
+    B2 -->|"voice tab"| C
+    B3 -->|"--voice"| C
 
-    B4 --> E["🔍 FAISS RAG\n591 scheme facts · MiniLM multilingual"]
+    B1 -->|"text msg"| D["✏️ Query Rewrite\nASR correction dictionary"]
+    B2 -->|"text tab"| D
+    B3 -->|"--text"| D
+
+    C --> D
+
+    D --> E["🔍 FAISS RAG\n591 scheme facts · MiniLM multilingual"]
+    B4 --> E
 
     E --> F["🧠 LLM\nGroq llama-3.1-8b · Qwen2.5-1.5B QLoRA"]
-    F --> G["🔊 TTS · gTTS"]
-    G --> H["✅ Answer to User"]
 
-    B4 --> |"tool result (JSON)"| M
+    F -->|"Gradio · CLI --voice"| G["🔊 TTS · gTTS\naudio output"]
+    F -->|"Telegram Bot · CLI --text"| H["✅ Text Reply"]
+    G --> H
+
+    B4 -->|"tool result (JSON)"| M
 
     style A fill:#1e3a5f,color:#fff
     style M fill:#1e3a5f,color:#fff
@@ -38,6 +47,7 @@ flowchart TD
     style E fill:#1e40af,color:#fff
     style C fill:#92400e,color:#fff
     style B4 fill:#065f46,color:#fff
+    style G fill:#92400e,color:#fff
 ```
 
 ## Why It Exists
