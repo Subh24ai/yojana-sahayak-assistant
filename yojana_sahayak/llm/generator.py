@@ -1,40 +1,39 @@
 """
 LLM generation using fine-tuned Qwen2.5-1.5B.
 
-Loads via MLX for Apple Silicon inference. Supports conversation
-history and RAG-augmented prompting.
+Loads via MLX for fully offline Apple Silicon inference.
+Supports conversation history and RAG-augmented prompting.
 """
 
+import re
 from typing import Optional
 
-import re
-
 from yojana_sahayak.config import (
-    HF_MODEL_MERGED, SYSTEM_PROMPT, LLM_MAX_TOKENS, LLM_TEMPERATURE,
+    MLX_MODEL, SYSTEM_PROMPT, LLM_MAX_TOKENS, LLM_TEMPERATURE,
     MAX_HISTORY_TURNS, NOISE_MARKERS,
 )
 
-# Thai, CJK, Cyrillic — none of these should appear in Hindi/English output
 _FOREIGN_SCRIPT_RE = re.compile(
-    r'[\u0e00-\u0e7f'   # Thai
-    r'\u4e00-\u9fff'    # CJK unified ideographs
-    r'\u3040-\u30ff'    # Hiragana / Katakana
-    r'\u0400-\u04ff]+'  # Cyrillic
+    r'[฀-๿'   # Thai
+    r'一-鿿'    # CJK unified ideographs
+    r'぀-ヿ'    # Hiragana / Katakana
+    r'Ѐ-ӿ]+'  # Cyrillic
 )
 
 _SENTENCE_END = re.compile(r'(?<=[.!?।])\s')
 _MAX_CHARS = 500
 
-# Patterns that signal the model is starting to hallucinate or ramble
 _HALLUCINATION_MARKERS = re.compile(
     r'(इस प्रकार[,\s]|Is prakar[,\s]|Therefore[,\s]|Thus[,\s]|'
     r'In this (way|manner)[,\s]|\n\s*\d+\.\s|\n\s*[-•]\s)',
     re.IGNORECASE,
 )
 
+_model = None
+_tokenizer = None
+
 
 def _truncate_at_noise(text: str) -> str:
-    """Strip web-scraping boilerplate, foreign-script, and hallucination patterns."""
     for marker in NOISE_MARKERS:
         idx = text.find(marker)
         if idx != -1:
@@ -42,15 +41,26 @@ def _truncate_at_noise(text: str) -> str:
     match = _FOREIGN_SCRIPT_RE.search(text)
     if match:
         text = text[:match.start()].rstrip(" \n\t,;:।")
-    # Cut at the first hallucination trigger (only if there's already a sentence before it)
     h_match = _HALLUCINATION_MARKERS.search(text)
     if h_match and h_match.start() > 40:
         text = text[:h_match.start()].rstrip(" \n\t,;:।")
+    return _remove_repetition(text)
+
+
+def _remove_repetition(text: str) -> str:
+    """Detect and cut at the first repeating n-gram (catches looping output)."""
+    words = text.split()
+    for n in (4, 3, 2, 1):
+        # +1 so the last valid window is included
+        for i in range(len(words) - 2 * n + 1):
+            phrase = tuple(words[i:i + n])
+            if tuple(words[i + n:i + 2 * n]) == phrase:
+                cut = " ".join(words[:i + n]).rstrip(" ,;:।")
+                return cut
     return text
 
 
 def _clip_to_sentences(text: str, max_chars: int = _MAX_CHARS) -> str:
-    """Cut text at the last complete sentence boundary within max_chars."""
     if len(text) <= max_chars:
         return text
     chunk = text[:max_chars]
@@ -60,26 +70,23 @@ def _clip_to_sentences(text: str, max_chars: int = _MAX_CHARS) -> str:
         return chunk[:cut].rstrip()
     return chunk.rstrip()
 
-_model = None
-_tokenizer = None
-
 
 def load_model():
-    """Load the fine-tuned model (downloads ~3GB on first run)."""
+    """Load Qwen2.5-1.5B-Instruct-4bit via MLX (downloads ~1 GB on first run)."""
     global _model, _tokenizer
     if _model is not None:
         return _model, _tokenizer
 
-    print("Loading fine-tuned Qwen2.5-1.5B (first run downloads model)...")
+    print(f"Loading {MLX_MODEL} via MLX...")
     from mlx_lm import load
-    _model, _tokenizer = load(HF_MODEL_MERGED)
+    _model, _tokenizer = load(MLX_MODEL)
     return _model, _tokenizer
 
 
 def generate(question: str, context: str = "",
              history: Optional[list] = None) -> str:
     """
-    Generate an answer. Uses Groq API when GROQ_API_KEY is set, MLX otherwise.
+    Generate an answer using local Qwen2.5-1.5B via MLX (fully offline).
 
     Args:
         question: User's query (Hindi or English).
@@ -89,16 +96,6 @@ def generate(question: str, context: str = "",
     Returns:
         Generated answer string.
     """
-    import os
-    if os.environ.get("GROQ_API_KEY"):
-        from yojana_sahayak.llm.groq_generator import generate as groq_generate
-        return groq_generate(question, context, history)
-    return _mlx_generate(question, context, history)
-
-
-def _mlx_generate(question: str, context: str = "",
-                  history: Optional[list] = None) -> str:
-    """Generate using local fine-tuned Qwen2.5-1.5B via MLX (Apple Silicon)."""
     from mlx_lm import generate as mlx_generate
     from mlx_lm.sample_utils import make_sampler
 

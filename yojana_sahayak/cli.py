@@ -9,6 +9,9 @@ Usage:
     python -m yojana_sahayak.cli --mcp
 """
 
+import os
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 import argparse
 
 

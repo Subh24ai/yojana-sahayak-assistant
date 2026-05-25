@@ -80,31 +80,50 @@ class SchemeRetriever:
         """
         Retrieve relevant scheme facts for a query.
 
+        Strategy:
+        - Named-scheme query (alias detected): search full index, then
+          filter results to docs belonging to that scheme.
+        - Generic/Hindi query: search with original + scheme-name anchor
+          and accept scores above the general threshold.
+
         Returns list of dicts with 'scheme', 'field', 'answer', 'score'.
         """
         self.build_index()
 
-        expanded = self._expand_query(query)
-        is_named = expanded != query
-        threshold = RAG_MIN_SCORE_NAMED if is_named else RAG_MIN_SCORE
-        effective_k = 1 if is_named else top_k
+        expanded, matched_scheme = self._expand_query(query)
+        threshold = RAG_MIN_SCORE_NAMED if matched_scheme else RAG_MIN_SCORE
 
+        # Search with a wider k so filtering has candidates to work with
+        search_k = max(top_k * 10, 20)
         q_emb = self._encoder.encode([expanded])
         q_emb = q_emb / np.linalg.norm(q_emb, axis=1, keepdims=True)
-        scores, indices = self._index.search(q_emb.astype(np.float32), effective_k)
+        scores, indices = self._index.search(q_emb.astype(np.float32), search_k)
 
-        results = []
+        seen_keys: set = set()
+        results: list[dict] = []
+
         for score, idx in zip(scores[0], indices[0]):
             if score < threshold:
                 continue
             d = self._docs[idx]
+
+            # For named-scheme queries, only keep docs from that scheme
+            if matched_scheme and matched_scheme.lower() not in d["scheme"].lower():
+                continue
+
+            key = (d["scheme"], d["field"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             results.append({
                 "scheme": d["scheme"],
                 "field": d["field"],
                 "answer": d["a"],
                 "score": round(float(score), 4),
             })
-        return results
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
 
     def retrieve_context(self, query: str, top_k: int = RAG_TOP_K) -> str:
         """Retrieve and format as a context string for LLM prompting."""
@@ -112,12 +131,19 @@ class SchemeRetriever:
         parts = [f"Scheme: {r['scheme']}\n{r['answer']}" for r in results]
         return "\n\n".join(parts)
 
-    def _expand_query(self, query: str) -> str:
+    def _expand_query(self, query: str) -> tuple[str, str]:
+        """Expand query with full scheme name when a known alias is detected.
+
+        Handles Roman (case-insensitive), Devanagari, and Hinglish aliases.
+        Returns (expanded_query, matched_scheme_name_or_empty).
+        """
         q_lower = query.lower()
         for alias, full_name in SCHEME_ALIASES.items():
-            if alias in q_lower:
-                return f"{full_name} {query}"
-        return query
+            if alias.isascii() and alias in q_lower:
+                return f"{full_name} {query}", full_name
+            elif not alias.isascii() and alias in query:
+                return f"{full_name} {query}", full_name
+        return query, ""
 
     @staticmethod
     def _is_clean(text: str) -> bool:

@@ -5,7 +5,7 @@ Features:
 - /start, /help, /clear, /schemes commands
 - Inline scheme browser with per-field buttons (eligibility, benefits, how to apply)
 - Text message handling — full RAG + LLM pipeline
-- Voice message handling — Groq/MLX ASR → RAG + LLM → text reply
+- Voice message handling — MLX Whisper ASR → RAG + LLM → text reply
 - Per-user conversation history (last 5 turns)
 - Rate limiting (10 messages per minute per user)
 - Webhook mode when WEBHOOK_URL is set; polling otherwise
@@ -168,19 +168,14 @@ def _run_pipeline(query: str, history: list) -> tuple[str, list]:
 
 
 def _transcribe(audio_path: str) -> str:
-    """Synchronous: transcribe audio file. Groq if key available, else MLX."""
-    import os
-    if os.environ.get("GROQ_API_KEY"):
-        from yojana_sahayak.asr.groq_asr import transcribe
-        result = transcribe(audio_path)
-    else:
-        wav_path = _to_wav(audio_path)
-        try:
-            from yojana_sahayak.asr.whisper import transcribe
-            result = transcribe(wav_path)
-        finally:
-            if wav_path != audio_path and Path(wav_path).exists():
-                os.unlink(wav_path)
+    """Synchronous: transcribe audio file using MLX Whisper (offline)."""
+    wav_path = _to_wav(audio_path)
+    try:
+        from yojana_sahayak.asr.whisper import transcribe
+        result = transcribe(wav_path)
+    finally:
+        if wav_path != audio_path and Path(wav_path).exists():
+            os.unlink(wav_path)
     return result.get("text", "").strip()
 
 

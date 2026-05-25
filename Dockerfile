@@ -12,15 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libsndfile1 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Python dependencies — core + cloud (bot + groq, no MLX)
+# Python dependencies — core offline stack (no MLX inside Docker; models served externally or via CPU)
 COPY requirements.txt .
 RUN pip install --no-cache-dir \
     sentence-transformers \
     faiss-cpu \
-    gtts \
     numpy \
     python-dotenv \
-    groq \
+    soundfile \
+    parler-tts \
+    transformers \
     "python-telegram-bot[webhooks]" \
     "mcp[cli]"
 
@@ -36,7 +37,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 
 EXPOSE 8000
 
-# Default: Telegram bot (set TELEGRAM_BOT_TOKEN + GROQ_API_KEY in env)
+# Default: Telegram bot (set TELEGRAM_BOT_TOKEN in env)
 CMD ["python", "-m", "yojana_sahayak.bot.telegram_bot"]
 
 # Alternative commands:

@@ -1,19 +1,26 @@
 """
-Text-to-Speech for Hindi and English output.
+Text-to-Speech using macOS system voices (fully offline, no download needed).
 
-Uses gTTS (Google Text-to-Speech) by default, with AI4Bharat
-as a fallback for higher-quality Indic voices.
+Hindi (Devanagari) → Lekha  (hi_IN, Apple Neural voice)
+English / Hinglish  → Rishi  (en_IN, Indian-accented English)
+
+Both voices ship with macOS and run instantly on Apple Silicon.
 """
 
-import tempfile
 import re
-from pathlib import Path
+import subprocess
+import tempfile
 from typing import Optional
 
 
+# macOS voice names  (install via System Settings → Accessibility → Spoken Content if missing)
+_VOICE_HINDI   = "Lekha"   # hi-IN female
+_VOICE_ENGLISH = "Rishi"   # en-IN male, handles Hinglish well
+
+
 def detect_language(text: str) -> str:
-    """Detect if text is primarily Hindi (Devanagari) or English."""
-    devanagari = len(re.findall(r'[\u0900-\u097F]', text))
+    """Return 'hi' if text is primarily Devanagari, else 'en'."""
+    devanagari = len(re.findall(r'[ऀ-ॿ]', text))
     total = max(len(text.split()), 1)
     return "hi" if devanagari > total * 0.3 else "en"
 
@@ -21,44 +28,27 @@ def detect_language(text: str) -> str:
 def synthesize(text: str, lang: Optional[str] = None,
                output_path: Optional[str] = None) -> str:
     """
-    Convert text to speech audio.
+    Convert text to speech using macOS `say` command (offline).
 
-    Args:
-        text: Text to speak.
-        lang: Language code ('hi' or 'en'). Auto-detected if None.
-        output_path: Path for output file. Temp file if None.
-
-    Returns:
-        Path to the generated audio file (MP3).
+    Returns path to the generated AIFF/WAV file.
     """
-    from gtts import gTTS
-
     if lang is None:
         lang = detect_language(text)
 
+    voice = _VOICE_HINDI if lang == "hi" else _VOICE_ENGLISH
+
     if output_path is None:
-        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         output_path = tmp.name
 
-    tts = gTTS(text=text, lang=lang, slow=False)
-    tts.save(output_path)
+    subprocess.run(
+        ["say", "-v", voice, "--data-format=LEF32@22050", "-o", output_path, text],
+        check=True,
+        capture_output=True,
+    )
     return output_path
 
 
 def play(audio_path: str) -> None:
     """Play an audio file through the default speakers."""
-    try:
-        import pygame
-        pygame.mixer.init()
-        pygame.mixer.music.load(audio_path)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            pygame.time.wait(100)
-    except ImportError:
-        import subprocess
-        import sys
-        if sys.platform == "darwin":
-            subprocess.run(["afplay", audio_path], check=False)
-        else:
-            print(f"Audio saved to {audio_path} (install pygame for playback)")
-
+    subprocess.run(["afplay", audio_path], check=False)

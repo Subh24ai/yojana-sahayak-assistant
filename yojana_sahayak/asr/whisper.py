@@ -2,7 +2,7 @@
 Automatic Speech Recognition using Whisper MLX.
 
 Optimized for Hindi speech on Apple Silicon. Runs fully offline
-once the model is cached (~800MB download on first run).
+once the model is cached (~800 MB download on first run).
 
 Benchmarks (Apple M4 Air):
     - WER: 24% on Hindi scheme queries
@@ -12,8 +12,6 @@ Benchmarks (Apple M4 Air):
 import re
 import time
 import tempfile
-from pathlib import Path
-from typing import Optional
 
 from yojana_sahayak.config import (
     WHISPER_MODEL, SAMPLE_RATE, RECORD_DURATION_SEC, ASR_CORRECTIONS,
@@ -22,29 +20,16 @@ from yojana_sahayak.config import (
 
 def transcribe(audio_path: str, language: str = "hi") -> dict:
     """
-    Transcribe an audio file using Whisper.
-
-    Tries MLX Whisper (Apple Silicon, local) first; falls back to Groq Whisper
-    API when mlx_whisper is not installed and GROQ_API_KEY is set.
+    Transcribe an audio file using MLX Whisper (offline, Apple Silicon).
 
     Args:
-        audio_path: Path to audio file (WAV preferred for MLX, any format for Groq).
+        audio_path: Path to WAV audio file.
         language: ISO language code ('hi' for Hindi).
 
     Returns:
-        dict with 'text', 'latency_s', and optionally 'rtf'.
+        dict with 'text', 'latency_s', and 'rtf'.
     """
-    import os
-    try:
-        import mlx_whisper
-    except ImportError:
-        if os.environ.get("GROQ_API_KEY"):
-            from yojana_sahayak.asr.groq_asr import transcribe as groq_transcribe
-            return groq_transcribe(audio_path, language)
-        raise ImportError(
-            "mlx_whisper not installed. Run: pip install mlx-whisper\n"
-            "Or set GROQ_API_KEY to use the Groq Whisper API instead."
-        )
+    import mlx_whisper
 
     start = time.time()
     result = mlx_whisper.transcribe(
@@ -64,14 +49,7 @@ def transcribe(audio_path: str, language: str = "hi") -> dict:
 
 
 def rewrite_query(text: str) -> str:
-    """
-    Apply ASR correction dictionary to fix common Whisper errors
-    on Indian scheme names (Devanagari and Roman).
-
-    Examples:
-        'आइसमान भारत' → 'आयुष्मान भारत'
-        'pm kisaan'     → 'PM Kisan'
-    """
+    """Apply ASR correction dictionary to fix common Whisper errors on Indian scheme names."""
     for wrong, correct in ASR_CORRECTIONS.items():
         text = re.sub(wrong, correct, text, flags=re.IGNORECASE)
     return text.strip()

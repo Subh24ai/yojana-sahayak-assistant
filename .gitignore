@@ -29,6 +29,7 @@ audio/
 adapters/
 *.safetensors
 *.bin
+mlx-yojana/
 
 # IDE
 .vscode/

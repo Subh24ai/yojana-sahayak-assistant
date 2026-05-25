@@ -243,7 +243,7 @@ Voice ──► Whisper large-v3-turbo (MLX)
               │
               ▼
         FAISS IndexFlatIP  ◄── sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-              │  top-k=3, cosine ≥ 0.75
+              │  top-k=3, cosine ≥ 0.40
               ▼
         Qwen2.5-1.5B-Instruct (QLoRA fine-tune, MLX)
               │
@@ -265,7 +265,7 @@ Voice ──► Whisper large-v3-turbo (MLX)
 #### Benchmarks
 - **ASR WER:** 24% on Hindi scheme queries · RTF 0.37 (2.7× real-time)
 - **LLM:** perplexity 1.15 on held-out scheme QA
-- **Data:** 591 scheme facts · 2,872 schemes · 39,957 instruct pairs
+- **Data:** 585 scheme facts · 2,872 schemes · 39,957 instruct pairs
 """
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -386,7 +386,7 @@ def clear_all():
 # ── UI ────────────────────────────────────────────────────────────────────────
 
 def launch_gradio(share: bool = True):
-    with gr.Blocks(css=CSS) as demo:
+    with gr.Blocks() as demo:
 
         gr.HTML(HIGHLIGHT_SCRIPT)
         gr.HTML(HEADER_HTML)
@@ -503,7 +503,7 @@ def launch_gradio(share: bool = True):
 
     print("\nLaunching Yojana Sahayak Demo...")
     print("   Open in browser to test and record demo videos.\n")
-    demo.launch(share=share, theme=gr.themes.Soft())
+    demo.launch(share=share, css=CSS, theme=gr.themes.Soft())
 
 
 if __name__ == "__main__":
