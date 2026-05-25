@@ -23,16 +23,16 @@ flowchart TD
     B2 -->|"voice tab"| C
     B3 -->|"--voice"| C
 
-    B1 -->|"text msg"| D["✏️ Query Rewrite\nASR correction dictionary\nHindi + Hinglish aliases"]
+    B1 -->|"text msg"| D["✏️ Query Rewrite\nASR correction dictionary\nDevanagari + Roman alias expansion\nnamed-scheme query expansion"]
     B2 -->|"text tab"| D
     B3 -->|"--text"| D
 
     C --> D
 
-    D --> E["🔍 FAISS RAG\n585 scheme facts · MiniLM multilingual\nHindi · Hinglish · English"]
+    D --> E["🔍 FAISS RAG\n585 scheme facts · MiniLM multilingual\ndual-script Hindi · Hinglish · English\nnamed-scheme filtering · top-k=3"]
     B4 --> E
 
-    E --> F["🧠 LLM\nQwen2.5-1.5B QLoRA · MLX 4-bit\nlocal mlx-yojana · offline"]
+    E --> F["🧠 LLM\nQwen2.5-1.5B QLoRA · MLX 4-bit\nlocal mlx-yojana · temp=0 · offline"]
 
     F -->|"Gradio · CLI --voice"| G["🔊 TTS\nmacOS say · Rishi en-IN · Lekha hi-IN\noffline · no download needed"]
     F -->|"Telegram Bot · CLI --text"| H["✅ Text Reply"]
@@ -46,6 +46,7 @@ flowchart TD
     style F fill:#4c1d95,color:#fff
     style E fill:#1e40af,color:#fff
     style C fill:#92400e,color:#fff
+    style D fill:#1e3a5f,color:#fff
     style B4 fill:#065f46,color:#fff
     style G fill:#92400e,color:#fff
 ```
