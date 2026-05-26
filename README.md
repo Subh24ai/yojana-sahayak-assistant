@@ -30,21 +30,20 @@ flowchart TD
 
     E --> F["🧠 LLM\nQwen2.5-1.5B QLoRA · MLX 4-bit\nlocal mlx-yojana · temp=0 · offline"]
 
-    F -->|"Gradio · CLI --voice"| G["🔊 TTS\nmacOS say · Rishi en-IN · Lekha hi-IN\noffline · no download needed"]
+    F -->|"Gradio · CLI --voice"| G["🔊 TTS → Audio Response\nmacOS say · Rishi en-IN · Lekha hi-IN\noffline · no download needed"]
     F -->|"CLI --text"| H["✅ Text Reply"]
-    G --> H
 
     B4 -->|"tool result (JSON)"| M
 
     style A fill:#1e3a5f,color:#fff
     style M fill:#1e3a5f,color:#fff
     style H fill:#166534,color:#fff
+    style G fill:#166534,color:#fff
     style F fill:#4c1d95,color:#fff
     style E fill:#1e40af,color:#fff
     style C fill:#92400e,color:#fff
     style D fill:#1e3a5f,color:#fff
     style B4 fill:#065f46,color:#fff
-    style G fill:#92400e,color:#fff
 ```
 
 ## Why It Exists
