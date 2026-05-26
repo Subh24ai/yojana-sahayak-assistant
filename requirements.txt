@@ -17,14 +17,11 @@ mlx-lm>=0.10.0
 parler-tts>=1.0.0
 transformers>=4.40.0
 
-# Telegram Bot
-python-telegram-bot[webhooks]>=20.7
-
 # MCP Server
 mcp[cli]>=1.0.0
 
-# Demo UI (optional)
-# gradio>=4.0.0
+# Gradio web demo
+gradio>=4.0.0
 
 # Dev
 pytest>=7.0

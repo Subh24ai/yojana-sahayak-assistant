@@ -7,22 +7,16 @@ Designed for integration with agentic AI systems — including air-gapped,
 on-premise deployments where LLMs invoke tools via stdio transport.
 
 Tools:
-    - search_schemes: Semantic search over 591+ scheme facts
-    - get_scheme_details: Retrieve specific scheme info by name and field
-    - check_eligibility: Check eligibility for a named scheme
-    - list_schemes: List all indexed schemes
+    - search_schemes      — Semantic search over 585+ scheme facts
+    - get_scheme_details  — Retrieve specific scheme info by name and field
+    - check_eligibility   — Fetch eligibility criteria for a named scheme
+    - list_schemes        — List all indexed scheme names
 
-Transport:
-    - stdio (default): Zero network dependency. MCP server runs as a child
-      process communicating via piped JSON-RPC. Ideal for air-gapped environments.
-    - SSE: For web-based integrations.
+Transport: stdio (default) — zero network dependency, ideal for air-gapped use.
 
 Usage:
-    # stdio mode (for air-gapped / on-prem deployment)
     python -m yojana_sahayak.mcp.server
-
-    # Or via the CLI entry point
-    yojana-mcp
+    # or: yojana-mcp
 """
 
 import json
@@ -128,15 +122,17 @@ def get_scheme_details(scheme_name: str,
 
 def check_eligibility(scheme_name: str, user_context: str = "") -> dict:
     """
-    Check eligibility criteria for a government scheme.
+    Retrieve eligibility criteria for a government scheme.
 
     Args:
-        scheme_name: Name of the scheme to check.
-        user_context: Optional user details for personalized matching
-                      (e.g., 'farmer with 1 hectare land in UP').
+        scheme_name: Name of the scheme (e.g., 'PM Kisan', 'Ayushman Bharat').
+        user_context: Optional user profile (e.g., 'farmer with 2 acres land in UP').
+                      When provided, it is included in the response alongside the
+                      eligibility text so the calling agent can assess fit.
 
     Returns:
-        Dict with eligibility criteria and match assessment.
+        Dict with 'eligibility_criteria' text. If user_context was given, also
+        includes 'user_context' and a 'note' prompting the agent to compare.
     """
     query = f"{scheme_name} eligibility {user_context}".strip()
     results = search_schemes(query, top_k=2)
@@ -148,11 +144,18 @@ def check_eligibility(scheme_name: str, user_context: str = "") -> dict:
     if not eligibility_results:
         return {"error": f"No eligibility information found for '{scheme_name}'"}
 
-    return {
+    out = {
         "scheme": eligibility_results[0]["scheme"],
         "eligibility_criteria": eligibility_results[0]["answer"],
         "confidence": eligibility_results[0]["score"],
     }
+    if user_context:
+        out["user_context"] = user_context
+        out["note"] = (
+            "Compare 'user_context' against 'eligibility_criteria' "
+            "to determine whether this person qualifies."
+        )
+    return out
 
 
 def list_schemes() -> dict:
@@ -160,13 +163,10 @@ def list_schemes() -> dict:
     List all government schemes in the knowledge base.
 
     Returns:
-        Dict with 'count' and 'schemes' (list of unique scheme names).
+        Dict with 'count' and 'schemes' (sorted list of unique scheme names).
     """
     retriever = _get_retriever()
-    if not retriever._docs:
-        return {"count": 0, "schemes": []}
-
-    names = sorted(set(d["scheme"] for d in retriever._docs))
+    names = retriever.scheme_names          # public property, no private access
     return {"count": len(names), "schemes": names}
 
 
@@ -189,29 +189,57 @@ def create_mcp_server():
         ),
     )
 
-    @mcp.tool()
-    def tool_search_schemes(query: str, top_k: int = 3) -> str:
-        """Search government schemes by natural language query (Hindi or English)."""
-        results = search_schemes(query, top_k)
-        return json.dumps(results, ensure_ascii=False, indent=2)
+    @mcp.tool(name="search_schemes")
+    def _search_schemes(query: str, top_k: int = 3) -> str:
+        """
+        Semantic search over 585+ Indian government scheme facts.
+        Query in Hindi, English, or Hinglish.
+        Returns ranked list of matching scheme facts with scheme name, field, answer, and score.
+        """
+        try:
+            results = search_schemes(query, top_k)
+            return json.dumps(results, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
-    @mcp.tool()
-    def tool_get_scheme(scheme_name: str, field: str = "") -> str:
-        """Get details about a specific scheme. Fields: eligibility, benefits, description, application_process."""
-        result = get_scheme_details(scheme_name, field or None)
-        return json.dumps(result, ensure_ascii=False, indent=2)
+    @mcp.tool(name="get_scheme_details")
+    def _get_scheme_details(scheme_name: str, field: str = "") -> str:
+        """
+        Get details about a specific Indian government scheme.
+        scheme_name: e.g. 'PM Kisan', 'Ayushman Bharat', 'Ujjwala Yojana'.
+        field (optional): one of 'eligibility', 'benefits', 'description', 'application_process'.
+        Omit field to get all available information for the scheme.
+        """
+        try:
+            result = get_scheme_details(scheme_name, field or None)
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
-    @mcp.tool()
-    def tool_check_eligibility(scheme_name: str, user_context: str = "") -> str:
-        """Check if someone is eligible for a scheme. Optionally provide user details for matching."""
-        result = check_eligibility(scheme_name, user_context)
-        return json.dumps(result, ensure_ascii=False, indent=2)
+    @mcp.tool(name="check_eligibility")
+    def _check_eligibility(scheme_name: str, user_context: str = "") -> str:
+        """
+        Fetch eligibility criteria for an Indian government scheme.
+        Optionally pass user_context (e.g. 'farmer with 2 acres in UP') —
+        it will be returned alongside the criteria so you can compare and assess fit.
+        """
+        try:
+            result = check_eligibility(scheme_name, user_context)
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
-    @mcp.tool()
-    def tool_list_schemes() -> str:
-        """List all government schemes in the knowledge base."""
-        result = list_schemes()
-        return json.dumps(result, ensure_ascii=False, indent=2)
+    @mcp.tool(name="list_schemes")
+    def _list_schemes() -> str:
+        """
+        List all government schemes currently in the knowledge base.
+        Returns total count and a sorted list of scheme names.
+        """
+        try:
+            result = list_schemes()
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
     return mcp
 

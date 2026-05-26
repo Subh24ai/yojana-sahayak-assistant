@@ -3,29 +3,25 @@
 A **fully offline, multilingual AI assistant** that helps Indian citizens discover and understand government welfare schemes in Hindi, English, and Hinglish. Runs entirely on-device — no cloud APIs, no internet required for inference.
 
 **Three ways to use it:**
-- 🤖 **Telegram bot** — most accessible, works on any phone
-- 🖥️ **Gradio web demo** — browser-based voice + text UI
-- 🔧 **MCP server** — tool-calling integration for agentic AI systems
+- 🖥️ **Gradio web demo** — browser-based voice + text UI with pipeline progress and TTS
+- 🔧 **CLI** — quick text or voice queries from the terminal
+- 🤖 **MCP server** — tool-calling integration for agentic AI systems (Claude, Cursor, etc.)
 
 ```mermaid
 flowchart TD
     A["🗣️ User Query\nHindi · English · Hinglish"] --> B1
     A --> B2
-    A --> B3
     M["🤖 LLM Agent\nClaude · Cursor · Any MCP client"] --> B4
 
-    B1["🤖 Telegram Bot\ntext or voice message"]
-    B2["🖥️ Gradio Demo\ntext tab or voice tab"]
-    B3["⌨️ CLI\n--text or --voice"]
+    B1["🖥️ Gradio Demo\nvoice tab or text tab"]
+    B2["⌨️ CLI\n--text or --voice"]
     B4["🔧 MCP Server\nstdio transport\nsearch_schemes · get_scheme_details\ncheck_eligibility · list_schemes"]
 
-    B1 -->|"voice msg"| C["🎙️ ASR\nMLX Whisper large-v3-turbo\nApple Silicon · offline"]
-    B2 -->|"voice tab"| C
-    B3 -->|"--voice"| C
+    B1 -->|"voice tab"| C["🎙️ ASR\nMLX Whisper large-v3-turbo\nApple Silicon · offline"]
+    B2 -->|"--voice"| C
 
-    B1 -->|"text msg"| D["✏️ Query Rewrite\nASR correction dictionary\nDevanagari + Roman alias expansion\nnamed-scheme query expansion"]
-    B2 -->|"text tab"| D
-    B3 -->|"--text"| D
+    B1 -->|"text tab"| D["✏️ Query Rewrite\nASR correction dictionary\nDevanagari + Roman alias expansion\nnamed-scheme query expansion"]
+    B2 -->|"--text"| D
 
     C --> D
 
@@ -35,7 +31,7 @@ flowchart TD
     E --> F["🧠 LLM\nQwen2.5-1.5B QLoRA · MLX 4-bit\nlocal mlx-yojana · temp=0 · offline"]
 
     F -->|"Gradio · CLI --voice"| G["🔊 TTS\nmacOS say · Rishi en-IN · Lekha hi-IN\noffline · no download needed"]
-    F -->|"Telegram Bot · CLI --text"| H["✅ Text Reply"]
+    F -->|"CLI --text"| H["✅ Text Reply"]
     G --> H
 
     B4 -->|"tool result (JSON)"| M
@@ -53,7 +49,7 @@ flowchart TD
 
 ## Why It Exists
 
-600M+ Indians are eligible for government welfare schemes but can't navigate them — language barriers, digital literacy gaps, and bureaucratic complexity. Yojana Sahayak is a voice-first AI that speaks Hindi, runs on Telegram (where people already are), and answers questions about 2,872+ schemes instantly — entirely offline on Apple Silicon.
+600M+ Indians are eligible for government welfare schemes but can't navigate them — language barriers, digital literacy gaps, and bureaucratic complexity. Yojana Sahayak is a voice-first AI that speaks Hindi, runs in the browser, and answers questions about 2,872+ schemes instantly — entirely offline on Apple Silicon.
 
 ---
 
@@ -84,17 +80,16 @@ cd yojana-sahayak
 python -m venv .v2env && source .v2env/bin/activate
 
 # Install all dependencies
-pip install -e ".[bot,demo,mcp]"
+pip install -e ".[demo,mcp]"
 pip install mlx-whisper mlx-lm sounddevice scipy soundfile parler-tts
 
-# Convert fine-tuned model to MLX 4-bit (one time, ~10 min, needs ~4 GB disk)
-mlx_lm.convert \
-  --hf-path Subh24ai/yojana-sahayak-qwen2.5-1.5b-merged \
-  --mlx-path mlx-yojana \
-  --quantize --q-bits 4
+# Convert fine-tuned model to MLX 4-bit format (one time, ~3 min, needs ~4 GB disk)
+python scripts/setup_mlx_model.py
 ```
 
 After this, `mlx-yojana/` (~851 MB) is used for all inference — no further downloads needed.
+
+> **Without this step** the pipeline falls back to the HuggingFace merged model (downloaded on first inference, ~1 GB) and prints a warning. Quality is the same; startup is slower on first run.
 
 ### Option 1 — Gradio Web Demo
 
@@ -104,30 +99,25 @@ python -m yojana_sahayak.cli --gradio
 # Open http://127.0.0.1:7860
 ```
 
-### Option 2 — Telegram Bot
+The demo includes:
+- **Voice tab** — record mic, press Ask, get audio response with word-by-word highlighting
+- **Text tab** — example scheme chips, type or click to query
+- **Pipeline progress** — animated stage indicator (ASR → Rewrite → RAG → LLM → TTS)
+- **Latency cards** — color-coded per-stage timing (green < 2s, yellow 2–5s, red > 5s)
 
-```bash
-source .v2env/bin/activate
-# Set TELEGRAM_BOT_TOKEN in .env
-python -m yojana_sahayak.bot.telegram_bot
-# or: make bot
-```
-
-The bot starts in **polling mode** by default. For production, set `WEBHOOK_URL` and it switches to webhook mode automatically.
-
-### Option 3 — Text Query (CLI)
+### Option 2 — Text Query (CLI)
 
 ```bash
 python -m yojana_sahayak.cli --text "PM Kisan ke liye kaun eligible hai?"
 ```
 
-### Option 4 — Voice Query (CLI)
+### Option 3 — Voice Query (CLI)
 
 ```bash
 python -m yojana_sahayak.cli --voice
 ```
 
-### Option 5 — MCP Server (for agentic AI)
+### Option 4 — MCP Server (for agentic AI)
 
 ```bash
 python -m yojana_sahayak.mcp.server
@@ -157,38 +147,14 @@ User speaks / types
 
 ---
 
-## Telegram Bot Features
-
-| Feature | Details |
-|---------|---------|
-| `/start` `/help` | Welcome message with usage examples |
-| `/schemes` | Inline keyboard: tap any of 10 popular schemes |
-| Per-scheme buttons | Eligibility · Benefits · How to Apply · About |
-| `/clear` | Reset conversation history |
-| Text messages | Full RAG + LLM pipeline, 5-turn memory |
-| Voice messages | MLX Whisper ASR → RAG → LLM → text reply |
-| Languages | Hindi · English · Hinglish |
-| Rate limiting | 10 messages/minute per user |
-| Deployment | Polling (dev) or Webhook (production) |
-
----
-
 ## Environment Variables
 
-Only one variable is required to run the Telegram bot:
+No API keys are required to run the demo or CLI. The only optional variable is for private HuggingFace model downloads:
 
 ```env
-# Required for Telegram bot — get from @BotFather
-TELEGRAM_BOT_TOKEN=your_bot_token
-
-# Optional: production webhook URL (leave empty for polling mode)
-WEBHOOK_URL=https://your-app.railway.app
-
-# Optional: HuggingFace token (only for private model downloads)
+# Optional: HuggingFace token (only if using private model repos)
 HF_TOKEN=
 ```
-
-No Groq, no OpenAI, no cloud keys needed.
 
 ---
 
@@ -244,8 +210,8 @@ Exposes government scheme knowledge as tools any LLM agent can invoke via [Model
 yojana-sahayak/
 ├── yojana_sahayak/
 │   ├── config.py                # Centralized config — models, RAG thresholds, aliases
-│   ├── cli.py                   # CLI: --text --voice --gradio --bot --mcp
-│   ├── demo.py                  # Gradio web UI (voice + text tabs)
+│   ├── cli.py                   # CLI: --text --voice --gradio --mcp
+│   ├── demo.py                  # Gradio web UI (voice + text tabs, pipeline progress)
 │   ├── asr/
 │   │   └── whisper.py           # MLX Whisper ASR + ASR correction rewrite (offline)
 │   ├── rag/
@@ -254,8 +220,6 @@ yojana-sahayak/
 │   │   └── generator.py         # Qwen2.5-1.5B via MLX 4-bit, noise + repetition filter
 │   ├── tts/
 │   │   └── speaker.py           # macOS say: Rishi (en-IN Hinglish) + Lekha (hi-IN Hindi)
-│   ├── bot/
-│   │   └── telegram_bot.py      # Telegram bot (text + voice + inline keyboards)
 │   ├── mcp/
 │   │   └── server.py            # MCP server (4 tools, stdio transport)
 │   ├── agent/
@@ -271,9 +235,8 @@ yojana-sahayak/
 │   ├── train_clean.jsonl        # 31,965 training records (git-ignored, large)
 │   └── eval_clean.jsonl         # 7,992 eval records (git-ignored, large)
 ├── .env                         # Credentials (git-ignored — never commit)
-├── Dockerfile                   # Default: Telegram bot; supports all modes
-├── Makefile                     # make bot / demo / mcp / query / test
-├── pyproject.toml               # Entry points: yojana-bot, yojana-cli, yojana-mcp
+├── Dockerfile                   # Default: Gradio demo on port 7860
+├── pyproject.toml               # Entry points: yojana-cli, yojana-mcp
 └── requirements.txt
 ```
 
@@ -283,7 +246,7 @@ yojana-sahayak/
 
 | Layer | Technology |
 |-------|-----------|
-| Telegram bot | python-telegram-bot v20 (async) |
+| Web UI | Gradio (voice + text tabs, word-highlight TTS sync) |
 | ASR | MLX Whisper large-v3-turbo (offline, Apple Silicon) |
 | Query rewrite | Rule-based ASR correction + Devanagari/Hinglish alias expansion |
 | Embeddings | paraphrase-multilingual-MiniLM-L12-v2 |
@@ -291,7 +254,7 @@ yojana-sahayak/
 | LLM | Qwen2.5-1.5B QLoRA, MLX 4-bit quantized (offline, local) |
 | TTS | macOS `say` — Rishi (en-IN) for Hinglish, Lekha (hi-IN) for Hindi |
 | Tool protocol | MCP stdio transport |
-| Deployment | Docker, Railway/Render/Fly.io |
+| Deployment | Docker (port 7860) |
 | Data source | myscheme.gov.in (2,872 schemes) |
 
 ---

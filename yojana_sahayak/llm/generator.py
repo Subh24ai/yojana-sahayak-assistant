@@ -5,6 +5,7 @@ Loads via MLX for fully offline Apple Silicon inference.
 Supports conversation history and RAG-augmented prompting.
 """
 
+import os
 import re
 from typing import Optional
 
@@ -71,13 +72,62 @@ def _clip_to_sentences(text: str, max_chars: int = _MAX_CHARS) -> str:
     return chunk.rstrip()
 
 
+_SENTENCE_BOUNDARY = re.compile(r'(?<=[.!?।])\s+')
+_MAX_VOICE_SENTENCES = 3
+
+
+def _limit_sentences(text: str, max_sentences: int = _MAX_VOICE_SENTENCES) -> str:
+    """Hard-limit output to N sentences for voice-friendly responses."""
+    sentences = _SENTENCE_BOUNDARY.split(text)
+    if len(sentences) <= max_sentences:
+        return text
+    limited = ' '.join(sentences[:max_sentences]).rstrip()
+    if limited and limited[-1] not in '.!?।':
+        limited += '.'
+    return limited
+
+
+def ensure_model_cached() -> bool:
+    """Pre-download the model if not cached. Call during app startup, not inference."""
+    import importlib
+    if importlib.util.find_spec("mlx_lm") is None:
+        print("WARNING: mlx_lm not installed. Install with: pip install mlx-lm")
+        return False
+
+    if os.path.isdir(MLX_MODEL):
+        return True
+
+    from huggingface_hub import snapshot_download, scan_cache_dir
+    try:
+        cache_info = scan_cache_dir()
+        cached_repos = {repo.repo_id for repo in cache_info.repos}
+        if MLX_MODEL in cached_repos:
+            return True
+    except Exception:
+        pass
+
+    print(f"Downloading model '{MLX_MODEL}' (one-time, ~1 GB)...")
+    print("   Subsequent runs will load from cache instantly.")
+    try:
+        snapshot_download(MLX_MODEL)
+        print("Model cached successfully.")
+        return True
+    except Exception as e:
+        print(f"WARNING: Download failed: {e}")
+        return False
+
+
 def load_model():
-    """Load Qwen2.5-1.5B-Instruct-4bit via MLX (downloads ~1 GB on first run)."""
+    """Load the MLX model. On first run, downloads ~1 GB if not locally cached."""
     global _model, _tokenizer
     if _model is not None:
         return _model, _tokenizer
 
-    print(f"Loading {MLX_MODEL} via MLX...")
+    is_local = os.path.isdir(MLX_MODEL)
+    if is_local:
+        print(f"Loading {MLX_MODEL} via MLX...")
+    else:
+        print(f"Loading {MLX_MODEL} via MLX (downloading on first run, ~1 GB)...")
     from mlx_lm import load
     _model, _tokenizer = load(MLX_MODEL)
     return _model, _tokenizer
@@ -129,4 +179,5 @@ def generate(question: str, context: str = "",
         max_tokens=LLM_MAX_TOKENS, sampler=sampler, verbose=False,
     )
     cleaned = _truncate_at_noise(response.strip())
-    return _clip_to_sentences(cleaned)
+    clipped = _clip_to_sentences(cleaned)
+    return _limit_sentences(clipped)

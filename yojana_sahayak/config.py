@@ -1,6 +1,7 @@
 """Centralized configuration for all pipeline components."""
 
 import os
+import warnings as _warnings
 from pathlib import Path
 
 # Load .env if present (no-op when python-dotenv is absent)
@@ -21,11 +22,22 @@ HF_MODEL_MERGED = f"{HF_USERNAME}/yojana-sahayak-qwen2.5-1.5b-merged"
 HF_MODEL_QLORA = f"{HF_USERNAME}/yojana-sahayak-qwen2.5-1.5b-qlora"
 BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
-# MLX model for inference — prefer local quantized fine-tune if available,
-# otherwise fall back to the clean base model from mlx-community.
-import os as _os
-_LOCAL_MLX = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "mlx-yojana")
-MLX_MODEL = _LOCAL_MLX if _os.path.isdir(_LOCAL_MLX) else "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+# MLX model for inference — 3-tier priority:
+#   1. mlx-yojana/  (local 4-bit, fully offline, fastest)
+#   2. HF merged model (first-run download ~1 GB)
+#   3. Base model fallback (no fine-tuning — quality degrades noticeably)
+_LOCAL_MLX = str(PROJECT_ROOT / "mlx-yojana")
+
+if os.path.isdir(_LOCAL_MLX):
+    MLX_MODEL = _LOCAL_MLX
+else:
+    MLX_MODEL = f"{HF_USERNAME}/yojana-sahayak-qwen2.5-1.5b-merged"
+    _warnings.warn(
+        f"Local MLX model not found at '{_LOCAL_MLX}'. "
+        f"Using HuggingFace model '{MLX_MODEL}' (requires first-run download ~1 GB). "
+        f"For fully offline use, run: python scripts/setup_mlx_model.py",
+        stacklevel=2,
+    )
 
 # ── ASR ───────────────────────────────────────────────────────────────────────
 WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"
@@ -53,7 +65,7 @@ SYSTEM_PROMPT = (
     "5. Never output lists, bullet points, or step numbers. Plain sentences only."
 )
 MAX_HISTORY_TURNS = 5
-LLM_MAX_TOKENS = 200
+LLM_MAX_TOKENS = 120
 LLM_TEMPERATURE = 0.0
 
 # ── Scheme Aliases (for query expansion) ──────────────────────────────────────
@@ -106,6 +118,7 @@ ASR_CORRECTIONS = {
     "पीम":          "पीएम",
     "पी-म":         "पीएम",
     "पी-एम":        "पीएम",
+    "पी एम":        "पीएम",
     "प्यांकिसान":   "पीएम किसान",
     "प्यांकिसन":    "पीएम किसान",
     # Common word misheard errors
@@ -124,4 +137,61 @@ ASR_CORRECTIONS = {
     "ayushmann":    "Ayushman",
     "ujwala":       "Ujjwala",
     "mudhra":       "Mudra",
+
+    # ── NEW: Common Hindi word errors observed from Whisper ──
+    "किसानी":       "किसान",
+    "किसन":         "किसान",
+    "होजना":        "योजना",
+    "योजाना":       "योजना",
+    "योजन":         "योजना",
+    "यौजना":        "योजना",
+    "जोजना":        "योजना",
+    "लिजवल":        "एलिजिबल",
+    "एलिजबल":       "एलिजिबल",
+    "इलिजिबल":      "एलिजिबल",
+    "ईलिजिबल":      "एलिजिबल",
+    "एलिजबिल":      "एलिजिबल",
+    "ओने":           "कौन",
+    "काऊन":          "कौन",
+    "कोन":           "कौन",
+
+    # ── NEW: Scheme name Devanagari errors ──
+    "आवस":           "आवास",
+    "आवाज":          "आवास",
+    "मुद्रां":        "मुद्रा",
+    "सुक्न्या":      "सुकन्या",
+    "कौशल":          "कौशल",
+    "प्रधान मंत्री": "पीएम",
+
+    # ── NEW: Common Hindi verb/word errors ──
+    "बतएं":          "बताएं",
+    "बतये":          "बताइए",
+    "बतइए":          "बताइए",
+    "मिलगा":         "मिलेगा",
+    "मिलेगी":        "मिलेगा",
+    "केसे":          "कैसे",
+    "केस":           "कैसे",
+    "किसी":          "किसे",
+    "आवदन":          "आवेदन",
+    "आबेदन":         "आवेदन",
+    "फायदा":         "फायदा",
+    "दस्तवेज़":      "डॉक्यूमेंट्स",
+    "जरूरी":         "ज़रूरी",
+    "पात्रता":       "पात्रता",
+    "प्रात्रता":     "पात्रता",
+
+    # ── NEW: Roman/English scheme errors ──
+    "pm kissan":     "PM Kisan",
+    "pm kisson":     "PM Kisan",
+    "ayushman":      "Ayushman",
+    "ayusman":       "Ayushman",
+    "aayushman":     "Ayushman",
+    "ujjawala":      "Ujjwala",
+    "ujwalla":       "Ujjwala",
+    "mudraa":        "Mudra",
+    "sukannya":      "Sukanya",
+    "elegible":      "eligible",
+    "elligible":     "eligible",
+    "yojana":        "Yojana",
+    "yojna":         "Yojana",
 }

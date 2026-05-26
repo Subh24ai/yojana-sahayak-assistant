@@ -36,14 +36,12 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp[cli]>=1.0.0"]
 demo = ["gradio>=4.0.0"]
-bot = ["python-telegram-bot[webhooks]>=20.7"]
 dev = ["pytest>=7.0", "ruff>=0.3.0"]
-all = ["yojana-sahayak[mcp,demo,bot,dev]"]
+all = ["yojana-sahayak[mcp,demo,dev]"]
 
 [project.scripts]
 yojana-mcp = "yojana_sahayak.mcp.server:main"
 yojana-cli = "yojana_sahayak.cli:main"
-yojana-bot = "yojana_sahayak.bot.telegram_bot:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

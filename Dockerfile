@@ -1,6 +1,6 @@
 # ============================================================================
 # Yojana Sahayak — Sovereign Voice Agent
-# Supports: Telegram Bot (default), MCP server, Gradio demo, CLI
+# Supports: Gradio demo (default), MCP server, CLI
 # ============================================================================
 
 FROM python:3.11-slim AS base
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir \
     soundfile \
     parler-tts \
     transformers \
-    "python-telegram-bot[webhooks]" \
+    gradio \
     "mcp[cli]"
 
 # Application code
@@ -32,15 +32,15 @@ COPY pyproject.toml .
 
 RUN pip install --no-cache-dir -e . --no-deps
 
-# Pre-download embedding model during build so the container starts fast
+# Pre-download models during build so the container starts fast and runs offline
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('Subh24ai/yojana-sahayak-qwen2.5-1.5b-merged')"
 
-EXPOSE 8000
+EXPOSE 7860
 
-# Default: Telegram bot (set TELEGRAM_BOT_TOKEN in env)
-CMD ["python", "-m", "yojana_sahayak.bot.telegram_bot"]
+# Default: Gradio web demo
+CMD ["python", "-m", "yojana_sahayak.cli", "--gradio"]
 
 # Alternative commands:
 # MCP server:   docker run --env-file .env yojana-sahayak python -m yojana_sahayak.mcp.server
-# Gradio demo:  docker run --env-file .env -p 7860:7860 yojana-sahayak python -m yojana_sahayak.cli --gradio
 # Text query:   docker run --env-file .env yojana-sahayak python -m yojana_sahayak.cli --text "PM Kisan"

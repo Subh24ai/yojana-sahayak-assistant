@@ -21,8 +21,8 @@ _VOICE_ENGLISH = "Rishi"   # en-IN male, handles Hinglish well
 def detect_language(text: str) -> str:
     """Return 'hi' if text is primarily Devanagari, else 'en'."""
     devanagari = len(re.findall(r'[ऀ-ॿ]', text))
-    total = max(len(text.split()), 1)
-    return "hi" if devanagari > total * 0.3 else "en"
+    total_chars = max(len(re.findall(r'[a-zA-Zऀ-ॿ]', text)), 1)
+    return "hi" if devanagari / total_chars > 0.3 else "en"
 
 
 def synthesize(text: str, lang: Optional[str] = None,

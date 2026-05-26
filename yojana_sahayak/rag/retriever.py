@@ -44,6 +44,13 @@ class SchemeRetriever:
     def doc_count(self) -> int:
         return len(self._docs) if self._docs else 0
 
+    @property
+    def scheme_names(self) -> list[str]:
+        """Sorted list of unique scheme names currently in the index."""
+        if not self._docs:
+            return []
+        return sorted(set(d["scheme"] for d in self._docs))
+
     def build_index(self) -> None:
         """Build FAISS index from curated + filtered training data."""
         if self._index is not None:
