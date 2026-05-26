@@ -26,13 +26,14 @@ flowchart TD
     C --> D
 
     D --> E["🔍 FAISS RAG\n585 scheme facts · MiniLM multilingual\ndual-script Hindi · Hinglish · English\nnamed-scheme filtering · top-k=3"]
-    B4 --> E
 
     E --> F["🧠 LLM\nQwen2.5-1.5B QLoRA · MLX 4-bit\nlocal mlx-yojana · temp=0 · offline"]
 
     F -->|"Gradio · CLI --voice"| G["🔊 TTS → Audio Response\nmacOS say · Rishi en-IN · Lekha hi-IN\noffline · no download needed"]
     F -->|"CLI --text"| H["✅ Text Reply"]
 
+    B4 -->|"semantic search"| E
+    E -->|"raw JSON facts"| B4
     B4 -->|"tool result (JSON)"| M
 
     style A fill:#1e3a5f,color:#fff
